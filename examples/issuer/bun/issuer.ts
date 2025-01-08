@@ -1,7 +1,6 @@
-import { issuer } from "@openauthjs/openauth"
+import { issuer, IssuerContext, ProviderResponse } from "@openauthjs/openauth"
 import { MemoryStorage } from "@openauthjs/openauth/storage/memory"
-import { PasswordProvider } from "@openauthjs/openauth/provider/password"
-import { PasswordUI } from "@openauthjs/openauth/ui/password"
+import { CognitoProvider } from "@openauthjs/openauth/provider/cognito"
 import { subjects } from "../../subjects.js"
 
 async function getUser(email: string) {
@@ -16,21 +15,26 @@ export default issuer({
     persist: "./persist.json",
   }),
   providers: {
-    password: PasswordProvider(
-      PasswordUI({
-        sendCode: async (email, code) => {
-          console.log(email, code)
-        },
-      }),
-    ),
+    cognito: CognitoProvider({
+      domain: "",
+      region: "",  
+      clientID: "",
+      clientSecret: "",
+      scopes: ["phone", "email", "openid"],
+      query: {
+        redirect_uri: "http://localhost:3001/api/callback" // TODO: add this url in cognito
+      }
+    }),
   },
   async allow() {
     return true
   },
-  success: async (ctx, value) => {
-    if (value.provider === "password") {
+  success: async (ctx: IssuerContext, value: ProviderResponse) => {
+    console.log('ctx >>', ctx);
+    console.log('value >>', value);
+    if (value.provider === "cognito") {
       return ctx.subject("user", {
-        id: await getUser(value.email),
+        id: value.tokenset.access // Cognito will provide the user ID directly
       })
     }
     throw new Error("Invalid provider")
